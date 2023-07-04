@@ -1,0 +1,89 @@
+// Air Pollution Monitoring System
+
+// Libraries
+#include <Wire.h>                       // I2C Library
+#include <Adafruit_Sensor.h>            // Adafruit Sensor Library
+#include <Adafruit_BME680.h>            // Adafruit BME680 Library
+#include <WiFi.h>                       // WiFi Library
+#include <Adafruit_MQTT.h>              // Adafruit MQTT Library
+#include <Adafruit_MQTT_Client.h>       // Adafruit MQTT Client Library
+
+// WiFi and MQTT Credentials
+#define WLAN_SSID       "your_network_ssid"
+#define WLAN_PASS       "your_network_password"
+#define AIO_SERVER      "io.adafruit.com"
+#define AIO_SERVERPORT  1883
+#define AIO_USERNAME    "your_AIO_username"
+#define AIO_KEY         "your_AIO_key"
+
+// Air Sensor Pins
+#define CO2_PIN         A0    // CO2 Sensor Analog Pin
+#define TVOC_PIN        A1    // Total Volatile Organic Compound Sensor Analog Pin
+
+// Initialize Sensors
+Adafruit_BME680 bme;        // BME680 Sensor Object
+
+// Initialize MQTT
+WiFiClient client;                                        // WiFi Client Object
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY); // MQTT Client Object
+Adafruit_MQTT_Publish airquality = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/airquality");
+
+// Variables
+float temperature, humidity, pressure, altitude;           // BME680 Sensor Variables
+int co2, tvoc;                                             // Air Sensor Variables
+
+// Define Sea Level Pressure
+float SEALEVELPRESSURE_HPA = 1013.25; // Replace with the appropriate value for your location
+
+// Setup Function
+void setup() {
+  Serial.begin(115200);                                    // Initialize Serial Communication
+  
+  // Initialize BME680 Sensor
+  if (!bme.begin(0x76)) {
+    Serial.println("Could not find a valid BME680 sensor, check wiring!");
+    while (1);
+  }
+  
+  // Connect to WiFi
+  connectWiFi();
+}
+
+// Loop Function
+void loop() {
+  // Read BME680 Sensor Data
+  temperature = bme.readTemperature();
+  humidity = bme.readHumidity();
+  pressure = bme.readPressure() / 100.0F;   // Conversion from Pa to hPa
+  altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  
+  // Read Air Sensors
+  co2 = analogRead(CO2_PIN);
+  tvoc = analogRead(TVOC_PIN);
+  
+  // Publish Data to MQTT
+  publishData();
+  
+  delay(5000);    // Delay for 5 seconds
+}
+
+// Connect to WiFi
+void connectWiFi() {
+  Serial.print("Connecting to WiFi...");
+  
+  // Connect to WiFi Network
+  WiFi.begin(WLAN_SSID, WLAN_PASS);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  
+  Serial.println("\nWiFi connected!");
+}
+
+// Publish Data to MQTT
+void publishData() {
+  // Prepare MQTT Payload
+  char payload[256];
+  snprintf(payload, sizeof(payload), "{\"temperature\":%.2f,\"humidity\":%.2f");}
